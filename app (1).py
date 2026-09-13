@@ -979,39 +979,56 @@ def page_research_journey():
         st.info("No research events recorded yet. Start by uploading a paper or adding a note.")
 
 
-def page_dashboard():
-    st.header("📊 Research Memory Dashboard")
-    counts = db_dashboard_counts()
+def page_dilution_calculator():
+    st.header("🧮 Dilution Calculator")
+    st.caption("Solve the dilution equation C₁V₁ = C₂V₂ for whichever value you're missing.")
 
-    cols = st.columns(4)
-    keys = list(counts.keys())
-    for i, key in enumerate(keys):
-        with cols[i % 4]:
-            st.metric(key, counts[key])
+    solve_for = st.selectbox(
+        "What do you want to calculate?",
+        ["C1 — initial concentration", "V1 — initial volume", "C2 — final concentration", "V2 — final volume"],
+    )
+
+    col1, col2 = st.columns(2)
+    with col1:
+        c1 = st.number_input("C1 — initial concentration", min_value=0.0, value=0.0, step=0.1,
+                              disabled=solve_for.startswith("C1"))
+        v1 = st.number_input("V1 — initial volume", min_value=0.0, value=0.0, step=0.1,
+                              disabled=solve_for.startswith("V1"))
+    with col2:
+        c2 = st.number_input("C2 — final concentration", min_value=0.0, value=0.0, step=0.1,
+                              disabled=solve_for.startswith("C2"))
+        v2 = st.number_input("V2 — final volume", min_value=0.0, value=0.0, step=0.1,
+                              disabled=solve_for.startswith("V2"))
+
+    if st.button("Calculate", type="primary"):
+        try:
+            if solve_for.startswith("C1"):
+                if v1 == 0:
+                    st.error("V1 can't be zero when solving for C1.")
+                else:
+                    st.success(f"C1 = {(c2 * v2) / v1:.4g}")
+            elif solve_for.startswith("V1"):
+                if c1 == 0:
+                    st.error("C1 can't be zero when solving for V1.")
+                else:
+                    st.success(f"V1 = {(c2 * v2) / c1:.4g}")
+            elif solve_for.startswith("C2"):
+                if v2 == 0:
+                    st.error("V2 can't be zero when solving for C2.")
+                else:
+                    st.success(f"C2 = {(c1 * v1) / v2:.4g}")
+            else:
+                if c2 == 0:
+                    st.error("C2 can't be zero when solving for V2.")
+                else:
+                    st.success(f"V2 = {(c1 * v1) / c2:.4g}")
+        except Exception as e:
+            st.error(f"Could not calculate: {e}")
 
     st.divider()
-    chart_df = pd.DataFrame({"Category": list(counts.keys()), "Count": list(counts.values())}).set_index("Category")
-    st.bar_chart(chart_df)
+    st.caption("C₁V₁ = C₂V₂ — the standard formula for diluting a stock solution to a target "
+               "concentration or volume. Make sure C1/C2 share the same units, and V1/V2 share the same units.")
 
-    st.divider()
-    st.subheader("Definition of Done — quick self-check")
-    papers_ok = counts["Papers"] > 0
-    evidence_ok = counts["AI Answers Saved"] > 0
-    personal_ok = (counts["Notes"] + counts["Questions"] + counts["Research Ideas"] + counts["Hypotheses"]) > 0
-    protocol_ok = counts["Protocols"] > 0
-    obs_ok = counts["Observations"] > 0
-    conn_ok = counts["Connections"] > 0
-
-    checklist = [
-        ("Uploaded at least one paper", papers_ok),
-        ("Saved at least one evidence-grounded AI answer", evidence_ok),
-        ("Saved at least one personal thought", personal_ok),
-        ("Uploaded at least one protocol", protocol_ok),
-        ("Recorded at least one observation", obs_ok),
-        ("Created at least one connection", conn_ok),
-    ]
-    for label, ok in checklist:
-        st.checkbox(label, value=ok, disabled=True)
 
 
 # =========================================================================
@@ -1039,12 +1056,14 @@ def main():
     st.sidebar.markdown("### 🧭 Navigate")
     page = st.sidebar.radio(
         "Navigate",
-        ["Dashboard", "Research Library", "Research AI", "Research Memory", "Protocol Companion", "Research Journey"],
+        ["Dilution Calculator", "Research Library", "Research AI", "Research Memory", "Protocol Companion", "Research Journey"],
         label_visibility="collapsed",
     )
 
     try:
-        if page == "Research Library":
+        if page == "Dilution Calculator":
+            page_dilution_calculator()
+        elif page == "Research Library":
             page_research_library()
         elif page == "Research AI":
             page_research_ai()
@@ -1054,8 +1073,6 @@ def main():
             page_protocol_companion()
         elif page == "Research Journey":
             page_research_journey()
-        elif page == "Dashboard":
-            page_dashboard()
     except Exception as e:
         st.error(f"Something went wrong while rendering this page: {e}. Your saved data is unaffected.")
 
